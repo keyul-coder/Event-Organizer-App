@@ -8,6 +8,7 @@ import {
   Alert,
   RefreshControl,
   SafeAreaView,
+  TextInput,
 } from 'react-native';
 import { signOut } from 'firebase/auth';
 import { collection, query, onSnapshot, doc, deleteDoc, updateDoc, arrayUnion, arrayRemove, setDoc } from 'firebase/firestore';
@@ -16,9 +17,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function DashboardScreen({ navigation }) {
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [filteredEvents, setFilteredEvents] = useState([]);
+  const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [favorites, setFavorites] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const eventsQuery = query(collection(db, 'events'));
@@ -28,6 +31,7 @@ export default function DashboardScreen({ navigation }) {
         eventsData.push({ id: doc.id, ...doc.data() });
       });
       setEvents(eventsData);
+      setFilteredEvents(eventsData);
       setLoading(false);
       setRefreshing(false);
     });
@@ -37,6 +41,21 @@ export default function DashboardScreen({ navigation }) {
 
     return unsubscribe;
   }, []);
+
+  // Search functionality
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredEvents(events);
+    } else {
+      const filtered = events.filter(event =>
+        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        event.createdByName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredEvents(filtered);
+    }
+  }, [searchQuery, events]);
 
   const loadUserFavorites = async () => {
     try {
@@ -99,7 +118,7 @@ export default function DashboardScreen({ navigation }) {
     try {
       const userRef = doc(db, 'users', auth.currentUser.uid);
       const isFavorite = favorites.includes(eventId);
-      
+
       if (isFavorite) {
         await updateDoc(userRef, {
           favorites: arrayRemove(eventId)
@@ -150,20 +169,20 @@ export default function DashboardScreen({ navigation }) {
             />
           </TouchableOpacity>
         </View>
-        
+
         <Text style={styles.eventDescription}>{item.description}</Text>
-        
+
         <View style={styles.eventDetails}>
           <View style={styles.eventDetailRow}>
             <Ionicons name="calendar-outline" size={16} color="#6b7280" />
             <Text style={styles.eventDetailText}>{formatDate(item.date)}</Text>
           </View>
-          
+
           <View style={styles.eventDetailRow}>
             <Ionicons name="location-outline" size={16} color="#6b7280" />
             <Text style={styles.eventDetailText}>{item.location}</Text>
           </View>
-          
+
           <View style={styles.eventDetailRow}>
             <Ionicons name="person-outline" size={16} color="#6b7280" />
             <Text style={styles.eventDetailText}>By: {item.createdByName}</Text>
@@ -179,7 +198,7 @@ export default function DashboardScreen({ navigation }) {
               <Ionicons name="create-outline" size={18} color="#6366f1" />
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={() => handleDeleteEvent(item.id, item.title)}
@@ -202,8 +221,29 @@ export default function DashboardScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search-outline" size={20} color="#6b7280" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search events..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#9ca3af"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+            >
+              <Ionicons name="close-circle" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
       <FlatList
-        data={events}
+        data={filteredEvents}
         renderItem={renderEventItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
@@ -213,8 +253,15 @@ export default function DashboardScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="calendar-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyText}>No events found</Text>
-            <Text style={styles.emptySubtext}>Create your first event to get started</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery ? 'No events found' : 'No events found'}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {searchQuery
+                ? `No events match "${searchQuery}"`
+                : 'Create your first event to get started'
+              }
+            </Text>
           </View>
         }
       />
@@ -244,6 +291,42 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     padding: 8,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f9fafb',
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+    color: '#1f2937',
+  },
+  clearButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   listContainer: {
     padding: 16,
