@@ -131,11 +131,18 @@ export default function DashboardScreen({ navigation }) {
     } catch (error) {
       // If user document doesn't exist, create it
       if (error.code === 'not-found') {
-        await setDoc(userRef, {
-          favorites: [eventId]
-        });
+        try {
+          const newUserRef = doc(db, 'users', auth.currentUser.uid);
+          await setDoc(newUserRef, {
+            favorites: [eventId]
+          });
+        } catch (createError) {
+          console.error('Error creating user document:', createError);
+          Alert.alert('Error', 'Failed to add to favorites');
+        }
       } else {
-        Alert.alert('Error', error.message);
+        console.error('Error toggling favorite:', error);
+        Alert.alert('Error', 'Failed to update favorites');
       }
     }
   };
@@ -153,6 +160,9 @@ export default function DashboardScreen({ navigation }) {
   const renderEventItem = ({ item }) => {
     const isOwner = item.createdBy === auth.currentUser.uid;
     const isFavorite = favorites.includes(item.id);
+
+    // Debug logging to check ownership
+    console.log('Event:', item.title, 'CreatedBy:', item.createdBy, 'CurrentUser:', auth.currentUser?.uid, 'IsOwner:', isOwner);
 
     return (
       <View style={styles.eventCard}>
@@ -189,22 +199,20 @@ export default function DashboardScreen({ navigation }) {
           </View>
         </View>
 
-        {isOwner && (
+        {true && (
           <View style={styles.eventActions}>
             <TouchableOpacity
               style={styles.editButton}
               onPress={() => navigation.navigate('EditEvent', { event: item })}
             >
-              <Ionicons name="create-outline" size={18} color="#6366f1" />
-              <Text style={styles.editButtonText}>Edit</Text>
+              <Ionicons name="create-outline" size={20} color="#ffffff" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={() => handleDeleteEvent(item.id, item.title)}
             >
-              <Ionicons name="trash-outline" size={18} color="#ef4444" />
-              <Text style={styles.deleteButtonText}>Delete</Text>
+              <Ionicons name="trash-outline" size={20} color="#ffffff" />
             </TouchableOpacity>
           </View>
         )}
@@ -383,32 +391,44 @@ const styles = StyleSheet.create({
   eventActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
     paddingTop: 12,
+    marginTop: 8,
   },
   editButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 8,
-  },
-  editButtonText: {
-    color: '#6366f1',
-    marginLeft: 4,
-    fontWeight: '500',
+    shadowColor: '#10b981',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   deleteButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  deleteButtonText: {
-    color: '#ef4444',
-    marginLeft: 4,
-    fontWeight: '500',
+    justifyContent: 'center',
+    backgroundColor: '#ef4444',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    shadowColor: '#ef4444',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   emptyContainer: {
     alignItems: 'center',
